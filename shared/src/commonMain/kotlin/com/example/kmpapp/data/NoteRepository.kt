@@ -11,8 +11,13 @@ import kotlinx.datetime.Clock
  * 通过 NoteStorage 接口与平台存储交互，完全不感知底层是
  * SharedPreferences 还是 NSUserDefaults。
  * 这就是 KMP 的威力：一份业务逻辑，双平台运行。
+ *
+ * 使用 object 单例，确保 DashboardViewModel 和 NotesViewModel 共享数据。
  */
-class NoteRepository(private val storage: NoteStorage = PlatformNoteStorage()) {
+object NoteRepository : NoteRepositoryBase(PlatformNoteStorage())
+
+/** 基类，封装存储和 CRUD 逻辑 */
+open class NoteRepositoryBase(private val storage: NoteStorage) {
 
     private val _notes = MutableStateFlow<List<Note>>(emptyList())
     val notes: StateFlow<List<Note>> = _notes.asStateFlow()

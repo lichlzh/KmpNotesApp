@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.stateIn
  */
 class NotesViewModel : ViewModel() {
 
-    private val repository = NoteRepository()
+    private val repository = NoteRepository
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
