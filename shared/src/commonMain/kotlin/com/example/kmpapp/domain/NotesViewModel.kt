@@ -68,14 +68,14 @@ class NotesViewModel : ViewModel() {
         if (!_isSearchActive.value) _searchQuery.value = ""
     }
 
-    fun addNote(title: String, content: String, colorHex: Long = 0xFFFFF3E0, weatherSnapshot: String? = null) {
+    fun addNote(title: String, content: String, colorHex: Long = 0xFFFFF3E0, weatherSnapshot: String? = null, attachmentsJson: String? = null) {
         if (title.isBlank() && content.isBlank()) return
-        repository.addNote(title, content, colorHex, weatherSnapshot)
+        repository.addNote(title, content, colorHex, weatherSnapshot, attachmentsJson)
     }
 
     fun updateNote(note: Note) {
         if (note.title.isBlank() && note.content.isBlank()) return
-        repository.updateNote(note.id, note.title, note.content, note.colorHex, note.isPinned)
+        repository.updateNote(note.id, note.title, note.content, note.colorHex, note.isPinned, note.attachmentsJson)
     }
 
     fun deleteNote(id: Long) {

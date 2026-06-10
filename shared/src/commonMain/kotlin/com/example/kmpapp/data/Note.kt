@@ -16,7 +16,8 @@ data class Note(
     val updatedAt: Long = Clock.System.now().toEpochMilliseconds(),
     val colorHex: Long = 0xFFFFF3E0,       // 暖黄色默认背景
     val isPinned: Boolean = false,
-    val weatherSnapshot: String? = null    // 创建笔记时的天气快照（JSON）
+    val weatherSnapshot: String? = null,    // 创建笔记时的天气快照（JSON）
+    val attachmentsJson: String? = null     // 附件列表（JSON 数组）
 ) {
     /**
      * 将 Note 序列化为简易 JSON 字符串。
@@ -34,6 +35,9 @@ data class Note(
         if (weatherSnapshot != null) {
             append(",\"ws\":\"${weatherSnapshot.escapeJson()}\"")
         }
+        if (attachmentsJson != null) {
+            append(",\"att\":\"${attachmentsJson.escapeJson()}\"")
+        }
         append("}")
     }
 
@@ -48,7 +52,8 @@ data class Note(
                 updatedAt = (map["updatedAt"] as? Number)?.toLong() ?: 0L,
                 colorHex = (map["colorHex"] as? Number)?.toLong() ?: 0xFFFFF3E0,
                 isPinned = map["isPinned"] as? Boolean ?: false,
-                weatherSnapshot = map["ws"] as? String
+                weatherSnapshot = map["ws"] as? String,
+                attachmentsJson = map["att"] as? String
             )
         }
 

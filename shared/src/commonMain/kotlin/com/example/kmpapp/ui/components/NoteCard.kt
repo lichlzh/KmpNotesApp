@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.kmpapp.data.Note
+import com.example.kmpapp.data.NoteAttachment
 import com.example.kmpapp.data.WeatherData
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -110,6 +111,26 @@ fun NoteCard(
                 if (weather != null) {
                     Text(
                         text = "${weather.conditionIcon} ${weather.temperature.toInt()}° ${weather.cityName}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            // 附件标签
+            if (note.attachmentsJson != null) {
+                val attachments = NoteAttachment.listFromJson(note.attachmentsJson)
+                if (attachments.isNotEmpty()) {
+                    val summary = buildString {
+                        val types = attachments.groupBy { it::class.simpleName }
+                        if (types.containsKey("Location")) append("\uD83D\uDCCD")
+                        if (types.containsKey("DeviceInfo")) append("\uD83D\uDCF1")
+                        if (types.containsKey("Checklist")) append("✅")
+                        if (types.containsKey("ShareLink")) append("\uD83D\uDD17")
+                        append(" ${attachments.size}")
+                    }
+                    Text(
+                        text = summary,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
