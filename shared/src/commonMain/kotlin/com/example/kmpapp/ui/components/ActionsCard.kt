@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
@@ -100,6 +101,7 @@ private fun ActionButton(
         "add" -> Icons.Default.Add
         "list" -> Icons.AutoMirrored.Filled.List
         "search" -> Icons.Default.Search
+        "palette" -> Icons.Default.Palette
         else -> Icons.Default.Star
     }
 
