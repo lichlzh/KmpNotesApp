@@ -1,11 +1,14 @@
 package com.example.kmpapp.domain
 
+import com.example.kmpapp.data.AppJson
 import com.example.kmpapp.data.ChecklistItem
 import com.example.kmpapp.data.NoteAttachment
 import com.example.kmpapp.data.PlatformCapabilities
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 
 /**
  * 附件管理器 —— 管理笔记的富媒体附件状态。
@@ -13,11 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * 在 commonMain 中实现，通过 PlatformCapabilities（expect/actual）
  * 调用平台原生能力，上层逻辑完全不感知平台差异。
  *
- * 支持的附件类型：
- * - Location: 调用平台定位 API
- * - DeviceInfo: 读取设备硬件信息
- * - Checklist: 交互式待办清单
- * - ShareLink: URL 链接 + 剪贴板集成
+ * 使用 kotlinx.serialization 自动处理附件列表的序列化。
  */
 class AttachmentManager {
 
@@ -30,13 +29,13 @@ class AttachmentManager {
     private val _statusMessage = MutableStateFlow<String?>(null)
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
 
-    /** 从 JSON 加载已有附件 */
-    fun loadFromJson(json: String?) {
-        _attachments.value = if (json != null) NoteAttachment.listFromJson(json) else emptyList()
+    /** 从附件列表加载（直接使用对象列表） */
+    fun loadAttachments(list: List<NoteAttachment>) {
+        _attachments.value = list
     }
 
-    /** 序列化为 JSON */
-    fun toJson(): String = NoteAttachment.listToJson(_attachments.value)
+    /** 序列化为 JSON 字符串 */
+    fun toJson(): String = AppJson.encodeToString<List<NoteAttachment>>(_attachments.value)
 
     // ── 添加附件 ──────────────────────────────────────────
 
@@ -111,6 +110,35 @@ class AttachmentManager {
             val items = attachment.items + ChecklistItem(text)
             list[attachmentIndex] = attachment.copy(items = items)
             _attachments.value = list
+        }
+    }
+
+    /** 删除清单中的单个条目 */
+    fun removeChecklistItem(attachmentIndex: Int, itemIndex: Int) {
+        val list = _attachments.value.toMutableList()
+        val attachment = list.getOrNull(attachmentIndex)
+        if (attachment is NoteAttachment.Checklist) {
+            val items = attachment.items.toMutableList()
+            if (itemIndex in items.indices) {
+                items.removeAt(itemIndex)
+                list[attachmentIndex] = attachment.copy(items = items)
+                _attachments.value = list
+            }
+        }
+    }
+
+    /** 编辑清单中条目的文本 */
+    fun editChecklistItem(attachmentIndex: Int, itemIndex: Int, newText: String) {
+        if (newText.isBlank()) return
+        val list = _attachments.value.toMutableList()
+        val attachment = list.getOrNull(attachmentIndex)
+        if (attachment is NoteAttachment.Checklist) {
+            val items = attachment.items.toMutableList()
+            if (itemIndex in items.indices) {
+                items[itemIndex] = items[itemIndex].copy(text = newText)
+                list[attachmentIndex] = attachment.copy(items = items)
+                _attachments.value = list
+            }
         }
     }
 

@@ -1,18 +1,31 @@
 package com.example.kmpapp.data
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
 /**
  * 天气数据模型 —— 在 commonMain 定义，双平台共享。
  *
- * 数据来源：Open-Meteo API（免费，无需 API Key）
+ * 数据来源：Open-Meteo API（https://open-meteo.com）
  * 包含温度、天气状况、湿度、风速等核心信息。
+ *
+ * 使用 @SerialName 将简短的 JSON 字段映射到可读的 Kotlin 属性名。
  */
+@Serializable
 data class WeatherData(
+    @SerialName("t")
     val temperature: Double = 0.0,
+    @SerialName("fl")
     val feelsLike: Double = 0.0,
+    @SerialName("h")
     val humidity: Int = 0,
+    @SerialName("ws")
     val windSpeed: Double = 0.0,
+    @SerialName("wc")
     val weatherCode: Int = 0,
+    @SerialName("d")
     val isDay: Boolean = true,
+    @SerialName("c")
     val cityName: String = "北京"
 ) {
     /** 将天气代码转为人类可读的描述 */
@@ -50,37 +63,23 @@ data class WeatherData(
             weatherCode >= 95 -> "⛈"
             else -> "🌡"
         }
+}
 
-    /** 序列化为简短的 JSON 片段，嵌入笔记元数据 */
-    fun toJson(): String = buildString {
-        append("{")
-        append("\"t\":$temperature,")
-        append("\"fl\":$feelsLike,")
-        append("\"h\":$humidity,")
-        append("\"ws\":$windSpeed,")
-        append("\"wc\":$weatherCode,")
-        append("\"d\":$isDay,")
-        append("\"c\":\"${cityName.escapeJson()}\"")
-        append("}")
-    }
-
-    companion object {
-        fun fromJson(json: String): WeatherData? {
-            if (json.isBlank()) return null
-            return try {
-                val map = parseJsonObject(json)
-                WeatherData(
-                    temperature = (map["t"] as? Number)?.toDouble() ?: 0.0,
-                    feelsLike = (map["fl"] as? Number)?.toDouble() ?: 0.0,
-                    humidity = (map["h"] as? Number)?.toInt() ?: 0,
-                    windSpeed = (map["ws"] as? Number)?.toDouble() ?: 0.0,
-                    weatherCode = (map["wc"] as? Number)?.toInt() ?: 0,
-                    isDay = map["d"] as? Boolean ?: true,
-                    cityName = map["c"] as? String ?: "北京"
-                )
-            } catch (e: Exception) {
-                null
-            }
-        }
-    }
+/**
+ * Open-Meteo API 响应结构 —— 仅用于解析 API 返回值，
+ * 解析后转为 [WeatherData] 存储。
+ */
+@Serializable
+data class OpenMeteoResponse(
+    val current: CurrentWeather
+) {
+    @Serializable
+    data class CurrentWeather(
+        val temperature_2m: Double = 0.0,
+        val apparent_temperature: Double = 0.0,
+        val relative_humidity_2m: Int = 0,
+        val wind_speed_10m: Double = 0.0,
+        val weather_code: Int = 0,
+        val is_day: Int = 1
+    )
 }

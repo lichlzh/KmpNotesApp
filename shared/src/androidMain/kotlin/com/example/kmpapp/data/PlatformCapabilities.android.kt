@@ -1,13 +1,16 @@
 package com.example.kmpapp.data
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.location.LocationManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.annotation.RequiresPermission
 
 /**
  * Android actual —— 调用 Android 原生 API 实现平台能力。
@@ -72,11 +75,12 @@ actual class PlatformCapabilities actual constructor() {
      * 生产环境应使用 FusedLocationProviderClient + ACCESS_FINE_LOCATION 权限。
      * 此处返回北京坐标作为演示，展示 expect/actual 的接口一致性。
      */
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     actual fun getLocation(onResult: (Double, Double, String) -> Unit) {
         // 尝试获取粗略位置（无需权限的方案）
         try {
-            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
-            val lastKnown = locationManager?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+            val lastKnown = locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
             if (lastKnown != null) {
                 onResult(lastKnown.latitude, lastKnown.longitude, "Android 定位 (${lastKnown.latitude.format(2)}, ${lastKnown.longitude.format(2)})")
                 return

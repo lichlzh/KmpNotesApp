@@ -26,7 +26,13 @@ open class NoteRepositoryBase(private val storage: NoteStorage) {
         _notes.value = storage.loadNotes()
     }
 
-    fun addNote(title: String, content: String, colorHex: Long = 0xFFFFF3E0, weatherSnapshot: String? = null, attachmentsJson: String? = null): Note {
+    fun addNote(
+        title: String,
+        content: String,
+        colorHex: Long = 0xFFFFF3E0,
+        weatherSnapshot: WeatherData? = null,
+        attachments: List<NoteAttachment> = emptyList()
+    ): Note {
         val now = Clock.System.now().toEpochMilliseconds()
         val note = Note(
             id = now,
@@ -36,7 +42,7 @@ open class NoteRepositoryBase(private val storage: NoteStorage) {
             updatedAt = now,
             colorHex = colorHex,
             weatherSnapshot = weatherSnapshot,
-            attachmentsJson = attachmentsJson
+            attachments = attachments
         )
         _notes.value = _notes.value + note
         storage.saveNotes(_notes.value)
@@ -49,7 +55,7 @@ open class NoteRepositoryBase(private val storage: NoteStorage) {
         content: String,
         colorHex: Long,
         isPinned: Boolean,
-        attachmentsJson: String? = null
+        attachments: List<NoteAttachment> = emptyList()
     ) {
         _notes.value = _notes.value.map { note ->
             if (note.id == id) {
@@ -59,7 +65,7 @@ open class NoteRepositoryBase(private val storage: NoteStorage) {
                     colorHex = colorHex,
                     isPinned = isPinned,
                     updatedAt = Clock.System.now().toEpochMilliseconds(),
-                    attachmentsJson = attachmentsJson
+                    attachments = attachments
                 )
             } else note
         }

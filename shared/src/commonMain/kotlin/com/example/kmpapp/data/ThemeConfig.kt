@@ -1,8 +1,13 @@
 package com.example.kmpapp.data
 
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 
 /**
  * 主题配置数据模型 —— 动态主题引擎的核心。
@@ -10,9 +15,10 @@ import androidx.compose.ui.graphics.Color
  * 整个 App 的配色方案由一份 JSON 配置驱动，可以从本地内置主题切换，
  * 也可以从远程服务器加载新主题，无需重新发版。
  *
- * 展示 KMP 动态化能力：同一套主题引擎代码，Android/iOS 行为完全一致，
- * Compose Multiplatform 的声明式 UI 让主题切换自动触发全 UI 树 recompose。
+ * 使用 @Serializable + 自定义 HexColorSerializer 自动处理
+ * Long ↔ "#RRGGBB" 的转换，JSON 输出与之前手工拼接完全兼容。
  */
+@Serializable
 data class ThemeConfig(
     val id: String,
     val name: String,
@@ -20,122 +26,56 @@ data class ThemeConfig(
     val colors: ThemeColors,
     val cornerRadius: Int = 16,
     val cardElevation: Int = 2
-) {
-    companion object {
-        fun fromJson(json: String): ThemeConfig? {
-            return try {
-                val map = parseJsonObject(json)
-                ThemeConfig(
-                    id = map["id"] as? String ?: "custom",
-                    name = map["name"] as? String ?: "自定义",
-                    isDark = map["isDark"] as? Boolean ?: false,
-                    colors = parseColors(map["colors"] as? String ?: "{}"),
-                    cornerRadius = (map["cornerRadius"] as? Number)?.toInt() ?: 16,
-                    cardElevation = (map["cardElevation"] as? Number)?.toInt() ?: 2
-                )
-            } catch (e: Exception) {
-                null
-            }
-        }
-
-        fun toJson(config: ThemeConfig): String = buildString {
-            append("{")
-            append("\"id\":\"${config.id.escapeJson()}\",")
-            append("\"name\":\"${config.name.escapeJson()}\",")
-            append("\"isDark\":${config.isDark},")
-            append("\"cornerRadius\":${config.cornerRadius},")
-            append("\"cardElevation\":${config.cardElevation},")
-            append("\"colors\":")
-            append(colorsToJson(config.colors))
-            append("}")
-        }
-
-        private fun parseColors(json: String): ThemeColors {
-            val map = parseJsonObject(json)
-            return ThemeColors(
-                primary = (map["primary"] as? String)?.toComposeColor() ?: 0xFFF57C00,
-                onPrimary = (map["onPrimary"] as? String)?.toComposeColor() ?: 0xFFFFFFFF,
-                primaryContainer = (map["primaryContainer"] as? String)?.toComposeColor() ?: 0xFFFFB74D,
-                onPrimaryContainer = (map["onPrimaryContainer"] as? String)?.toComposeColor() ?: 0xFFE65100,
-                secondary = (map["secondary"] as? String)?.toComposeColor() ?: 0xFF625B71,
-                onSecondary = (map["onSecondary"] as? String)?.toComposeColor() ?: 0xFFFFFFFF,
-                tertiary = (map["tertiary"] as? String)?.toComposeColor() ?: 0xFF7D5260,
-                onTertiary = (map["onTertiary"] as? String)?.toComposeColor() ?: 0xFFFFFFFF,
-                tertiaryContainer = (map["tertiaryContainer"] as? String)?.toComposeColor() ?: 0xFFFFD8E4,
-                onTertiaryContainer = (map["onTertiaryContainer"] as? String)?.toComposeColor() ?: 0xFF31111D,
-                background = (map["background"] as? String)?.toComposeColor() ?: 0xFFF8F5F2,
-                onBackground = (map["onBackground"] as? String)?.toComposeColor() ?: 0xFF1C1B1F,
-                surface = (map["surface"] as? String)?.toComposeColor() ?: 0xFFFFFBFE,
-                onSurface = (map["onSurface"] as? String)?.toComposeColor() ?: 0xFF1C1B1F,
-                surfaceVariant = (map["surfaceVariant"] as? String)?.toComposeColor() ?: 0xFFF5F0EB,
-                onSurfaceVariant = (map["onSurfaceVariant"] as? String)?.toComposeColor() ?: 0xFF49454F,
-                error = (map["error"] as? String)?.toComposeColor() ?: 0xFFB3261E,
-                onError = (map["onError"] as? String)?.toComposeColor() ?: 0xFFFFFFFF
-            )
-        }
-
-        private fun colorsToJson(colors: ThemeColors): String = buildString {
-            append("{")
-            append("\"primary\":\"${colors.primary.toHex()}\",")
-            append("\"onPrimary\":\"${colors.onPrimary.toHex()}\",")
-            append("\"primaryContainer\":\"${colors.primaryContainer.toHex()}\",")
-            append("\"onPrimaryContainer\":\"${colors.onPrimaryContainer.toHex()}\",")
-            append("\"secondary\":\"${colors.secondary.toHex()}\",")
-            append("\"onSecondary\":\"${colors.onSecondary.toHex()}\",")
-            append("\"tertiary\":\"${colors.tertiary.toHex()}\",")
-            append("\"onTertiary\":\"${colors.onTertiary.toHex()}\",")
-            append("\"tertiaryContainer\":\"${colors.tertiaryContainer.toHex()}\",")
-            append("\"onTertiaryContainer\":\"${colors.onTertiaryContainer.toHex()}\",")
-            append("\"background\":\"${colors.background.toHex()}\",")
-            append("\"onBackground\":\"${colors.onBackground.toHex()}\",")
-            append("\"surface\":\"${colors.surface.toHex()}\",")
-            append("\"onSurface\":\"${colors.onSurface.toHex()}\",")
-            append("\"surfaceVariant\":\"${colors.surfaceVariant.toHex()}\",")
-            append("\"onSurfaceVariant\":\"${colors.onSurfaceVariant.toHex()}\",")
-            append("\"error\":\"${colors.error.toHex()}\",")
-            append("\"onError\":\"${colors.onError.toHex()}\"")
-            append("}")
-        }
-    }
-}
+)
 
 /**
  * 主题颜色定义 —— 对应 Material 3 的完整色彩体系。
+ * 使用 @Serializable(with = HexColorSerializer::class) 自动将
+ * Long 值序列化为 "#RRGGBB" 格式字符串。
  */
+@Serializable
 data class ThemeColors(
-    val primary: Long,
-    val onPrimary: Long,
-    val primaryContainer: Long,
-    val onPrimaryContainer: Long,
-    val secondary: Long,
-    val onSecondary: Long,
-    val tertiary: Long,
-    val onTertiary: Long,
-    val tertiaryContainer: Long,
-    val onTertiaryContainer: Long,
-    val background: Long,
-    val onBackground: Long,
-    val surface: Long,
-    val onSurface: Long,
-    val surfaceVariant: Long,
-    val onSurfaceVariant: Long,
-    val error: Long,
-    val onError: Long
+    @Serializable(with = HexColorSerializer::class) val primary: Long,
+    @Serializable(with = HexColorSerializer::class) val onPrimary: Long,
+    @Serializable(with = HexColorSerializer::class) val primaryContainer: Long,
+    @Serializable(with = HexColorSerializer::class) val onPrimaryContainer: Long,
+    @Serializable(with = HexColorSerializer::class) val secondary: Long,
+    @Serializable(with = HexColorSerializer::class) val onSecondary: Long,
+    @Serializable(with = HexColorSerializer::class) val tertiary: Long,
+    @Serializable(with = HexColorSerializer::class) val onTertiary: Long,
+    @Serializable(with = HexColorSerializer::class) val tertiaryContainer: Long,
+    @Serializable(with = HexColorSerializer::class) val onTertiaryContainer: Long,
+    @Serializable(with = HexColorSerializer::class) val background: Long,
+    @Serializable(with = HexColorSerializer::class) val onBackground: Long,
+    @Serializable(with = HexColorSerializer::class) val surface: Long,
+    @Serializable(with = HexColorSerializer::class) val onSurface: Long,
+    @Serializable(with = HexColorSerializer::class) val surfaceVariant: Long,
+    @Serializable(with = HexColorSerializer::class) val onSurfaceVariant: Long,
+    @Serializable(with = HexColorSerializer::class) val error: Long,
+    @Serializable(with = HexColorSerializer::class) val onError: Long
 )
 
+// ── 自定义序列化器 ──────────────────────────────────────────────────────────
+
+/**
+ * 将 Long 颜色值序列化为 "#RRGGBB" 格式的 JSON 字符串，
+ * 反序列化时自动还原为带 alpha 通道的 Long 值。
+ */
+object HexColorSerializer : KSerializer<Long> {
+    override val descriptor = PrimitiveSerialDescriptor("HexColor", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: Long) {
+        val rgb = value and 0x00FFFFFF
+        encoder.encodeString("#${rgb.toString(16).padStart(6, '0').uppercase()}")
+    }
+
+    override fun deserialize(decoder: Decoder): Long {
+        val hex = decoder.decodeString().removePrefix("#").removePrefix("0x")
+        return hex.toLong(16) or 0xFF000000
+    }
+}
+
 // ── 颜色工具函数 ──────────────────────────────────────────────────────────
-
-/** 将 #RRGGBB 格式的字符串转为 Long 颜色值 */
-internal fun String.toComposeColor(): Long {
-    val hex = removePrefix("#").removePrefix("0x")
-    return hex.toLong(16) or 0xFF000000
-}
-
-/** 将 Long 颜色值转为 #RRGGBB 格式字符串 */
-internal fun Long.toHex(): String {
-    val rgb = this and 0x00FFFFFF
-    return "#${rgb.toString(16).padStart(6, '0').uppercase()}"
-}
 
 /** 将 Long 颜色值转为 Compose Color 对象 */
 internal fun Long.toColor(): Color = Color(this.toInt())

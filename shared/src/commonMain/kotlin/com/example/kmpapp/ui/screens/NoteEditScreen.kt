@@ -50,6 +50,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.kmpapp.data.Note
+import com.example.kmpapp.data.NoteAttachment
+import com.example.kmpapp.data.WeatherData
 import com.example.kmpapp.data.WeatherService
 import com.example.kmpapp.domain.AttachmentManager
 import com.example.kmpapp.domain.NotesViewModel
@@ -65,10 +67,10 @@ import com.example.kmpapp.ui.components.WeatherCard
  * - 文本输入（标题 + 正文）
  * - 颜色选择器（横滚圆点）
  * - 置顶切换 / 删除操作
- * - 富媒体附件（位置、设备信息、清单、链接）← Feature 3 新增
+ * - 富媒体附件（位置、设备信息、清单、链接）
  *
- * 天气快照和附件会在保存时记录到笔记元数据中。
- * 整段 UI 代码在 Android/iOS 上零改动共享。
+ * 天气快照和附件会在保存时直接以对象形式存入笔记，
+ * kotlinx.serialization 自动处理嵌套序列化。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,15 +90,15 @@ fun NoteEditScreen(
     val weatherService = remember { WeatherService() }
     val weatherData by weatherService.weather.collectAsState()
 
-    // 附件管理器 —— Feature 3 新增
+    // 附件管理器
     val attachmentManager = remember { AttachmentManager() }
     val attachments by attachmentManager.attachments.collectAsState()
     val statusMessage by attachmentManager.statusMessage.collectAsState()
 
     LaunchedEffect(Unit) {
         weatherService.fetchWeather()
-        // 加载已有附件
-        attachmentManager.loadFromJson(existingNote?.attachmentsJson)
+        // 加载已有附件（直接使用对象列表）
+        attachmentManager.loadAttachments(existingNote?.attachments ?: emptyList())
     }
 
     var title by remember { mutableStateOf(existingNote?.title ?: "") }
@@ -114,7 +116,7 @@ fun NoteEditScreen(
             navigationIcon = {
                 IconButton(onClick = {
                     saveNote(viewModel, noteId, title, content, colorHex, isPinned,
-                        weatherData?.toJson(), attachmentManager.toJson())
+                        weatherData, attachmentManager.attachments.value)
                     onBack()
                 }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -124,7 +126,7 @@ fun NoteEditScreen(
                 // 保存按钮（显眼的对勾图标）
                 IconButton(onClick = {
                     saveNote(viewModel, noteId, title, content, colorHex, isPinned,
-                        weatherData?.toJson(), attachmentManager.toJson())
+                        weatherData, attachmentManager.attachments.value)
                     onBack()
                 }) {
                     Icon(
@@ -237,7 +239,7 @@ fun NoteEditScreen(
                 }
             }
 
-            // ── 附件区域（Feature 3）──────────────────────
+            // ── 附件区域 ──────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "附件 (${attachments.size})",
@@ -270,21 +272,22 @@ fun NoteEditScreen(
                         index = index,
                         onRemove = { idx -> attachmentManager.removeAttachment(idx) },
                         onToggleChecklistItem = { aIdx, iIdx -> attachmentManager.toggleChecklistItem(aIdx, iIdx) },
+                        onAddChecklistItem = { aIdx, text -> attachmentManager.addChecklistItem(aIdx, text) },
+                        onRemoveChecklistItem = { aIdx, iIdx -> attachmentManager.removeChecklistItem(aIdx, iIdx) },
+                        onEditChecklistItem = { aIdx, iIdx, newText -> attachmentManager.editChecklistItem(aIdx, iIdx, newText) },
                         onCopyLink = { url -> attachmentManager.copyLinkToClipboard(url) }
                     )
                 }
             }
 
-            // 天气快照预览（编辑已有笔记时显示）
+            // 天气快照预览（编辑已有笔记时直接访问对象）
             if (existingNote?.weatherSnapshot != null) {
-                val savedWeather = com.example.kmpapp.data.WeatherData.fromJson(existingNote.weatherSnapshot)
-                if (savedWeather != null) {
-                    Text(
-                        text = "创建时天气: ${savedWeather.conditionIcon} ${savedWeather.temperature.toInt()}° ${savedWeather.conditionText} · ${savedWeather.cityName}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                }
+                val savedWeather = existingNote.weatherSnapshot
+                Text(
+                    text = "创建时天气: ${savedWeather.conditionIcon} ${savedWeather.temperature.toInt()}° ${savedWeather.conditionText} · ${savedWeather.cityName}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -292,7 +295,7 @@ fun NoteEditScreen(
     }
 }
 
-/** 保存或更新笔记（含天气快照和附件） */
+/** 保存或更新笔记（直接传递对象，kotlinx.serialization 自动处理序列化） */
 private fun saveNote(
     viewModel: NotesViewModel,
     noteId: Long?,
@@ -300,12 +303,12 @@ private fun saveNote(
     content: String,
     colorHex: Long,
     isPinned: Boolean,
-    weatherSnapshot: String?,
-    attachmentsJson: String?
+    weatherSnapshot: WeatherData?,
+    attachments: List<NoteAttachment>
 ) {
     if (title.isBlank() && content.isBlank()) return
 
-    val finalAttachments = if (attachmentsJson == "[]") null else attachmentsJson
+    val finalAttachments = if (attachments.isEmpty()) emptyList() else attachments
 
     if (noteId != null) {
         val existing = viewModel.notes.value.find { it.id == noteId }
@@ -317,7 +320,7 @@ private fun saveNote(
                     colorHex = colorHex,
                     isPinned = isPinned,
                     weatherSnapshot = weatherSnapshot ?: existing.weatherSnapshot,
-                    attachmentsJson = finalAttachments ?: existing.attachmentsJson
+                    attachments = if (finalAttachments.isNotEmpty()) finalAttachments else existing.attachments
                 )
             )
         }

@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.kmpapp.data.ActionItem
+import com.example.kmpapp.data.getActionItems
 import com.example.kmpapp.data.getPlatformName
 import com.example.kmpapp.domain.DashboardViewModel
 import com.example.kmpapp.ui.components.ActionsCard
@@ -140,7 +141,7 @@ fun DashboardScreen(
                         }
 
                         "actions" -> {
-                            val actions = parseActionItems(section.config)
+                            val actions = section.config.getActionItems()
                             ActionsCard(
                                 actions = actions,
                                 onAction = { action ->
@@ -209,60 +210,3 @@ fun DashboardScreen(
         )
     }
 }
-
-/**
- * 从 config map 中解析 actions 列表。
- * config 中的 "items" 字段存储为 JSON 字符串（数组格式）。
- */
-private fun parseActionItems(config: Map<String, Any>): List<ActionItem> {
-    val itemsJson = config["items"] as? String ?: return defaultActions()
-    return try {
-        val items = mutableListOf<ActionItem>()
-        // 简单的 JSON 数组解析
-        val body = itemsJson.removePrefix("[").removeSuffix("]").trim()
-        if (body.isEmpty()) return defaultActions()
-
-        var depth = 0
-        var start = -1
-        var inStr = false
-        var i = 0
-        while (i < body.length) {
-            val c = body[i]
-            if (inStr) {
-                if (c == '\\') { i += 2; continue }
-                if (c == '"') inStr = false
-            } else {
-                when (c) {
-                    '"' -> inStr = true
-                    '{' -> { if (depth == 0) start = i; depth++ }
-                    '}' -> {
-                        depth--
-                        if (depth == 0 && start >= 0) {
-                            val itemJson = body.substring(start, i + 1)
-                            val map = com.example.kmpapp.data.parseJsonObject(itemJson)
-                            items.add(
-                                ActionItem(
-                                    icon = map["icon"] as? String ?: "star",
-                                    label = map["label"] as? String ?: "",
-                                    action = map["action"] as? String ?: ""
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-            i++
-        }
-
-        if (items.isEmpty()) defaultActions() else items
-    } catch (e: Exception) {
-        defaultActions()
-    }
-}
-
-/** 默认操作按钮（当配置解析失败时使用） */
-private fun defaultActions() = listOf(
-    ActionItem("add", "\u65B0\u5EFA\u7B14\u8BB0", "create_note"),
-    ActionItem("list", "\u5168\u90E8\u7B14\u8BB0", "view_all"),
-    ActionItem("search", "\u641C\u7D22", "search")
-)

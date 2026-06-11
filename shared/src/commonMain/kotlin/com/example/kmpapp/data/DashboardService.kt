@@ -1,5 +1,8 @@
 package com.example.kmpapp.data
 
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+
 /**
  * 仪表盘服务 —— 负责配置的加载、缓存和持久化。
  *
@@ -8,6 +11,7 @@ package com.example.kmpapp.data
  * - 可以从远程服务器加载新的 JSON 配置来改变首页布局
  * - 旧版本遇到未知卡片类型时优雅降级（显示占位卡片）
  *
+ * 使用 kotlinx.serialization 自动处理 JSON，
  * 所有逻辑都在 commonMain，零平台代码。
  */
 object DashboardService {
@@ -18,7 +22,11 @@ object DashboardService {
     fun loadConfig(): DashboardConfig {
         val cached = storage.getString(STORAGE_KEY)
         return if (cached != null) {
-            DashboardConfig.fromJson(cached)
+            try {
+                AppJson.decodeFromString<DashboardConfig>(cached)
+            } catch (e: Exception) {
+                DashboardConfig.default()
+            }
         } else {
             DashboardConfig.default()
         }
@@ -26,12 +34,16 @@ object DashboardService {
 
     /** 保存配置到本地缓存 */
     fun saveConfig(config: DashboardConfig) {
-        storage.putString(STORAGE_KEY, DashboardConfig.toJson(config))
+        storage.putString(STORAGE_KEY, AppJson.encodeToString(config))
     }
 
     /** 从 JSON 字符串加载配置（可用于远程配置下发） */
     fun loadFromJson(json: String): DashboardConfig {
-        val config = DashboardConfig.fromJson(json)
+        val config = try {
+            AppJson.decodeFromString<DashboardConfig>(json)
+        } catch (e: Exception) {
+            DashboardConfig.default()
+        }
         saveConfig(config)
         return config
     }

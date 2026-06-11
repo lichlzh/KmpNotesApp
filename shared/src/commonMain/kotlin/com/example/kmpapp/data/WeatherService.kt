@@ -12,11 +12,11 @@ import kotlinx.coroutines.flow.asStateFlow
  * - 支持全球城市
  * - 返回当前天气 + 7 天预报
  *
- * 这里演示了 KMP 的核心价值：
- * 网络层（HTTP）由平台实现，业务逻辑（解析、状态管理）完全共享。
+ * 使用 kotlinx.serialization 解析 API 响应，
+ * 通过 [OpenMeteoResponse] 数据类自动映射 JSON 字段。
  */
 class WeatherService {
-
+    private val TAG = "[WeatherService]";
     private val _weather = MutableStateFlow<WeatherData?>(null)
     val weather: StateFlow<WeatherData?> = _weather.asStateFlow()
 
@@ -51,14 +51,25 @@ class WeatherService {
             result.fold(
                 onSuccess = { body ->
                     try {
-                        val data = parseOpenMeteoResponse(body, cityName)
+                        val response = AppJson.decodeFromString<OpenMeteoResponse>(body)
+                        val data = WeatherData(
+                            temperature = response.current.temperature_2m,
+                            feelsLike = response.current.apparent_temperature,
+                            humidity = response.current.relative_humidity_2m,
+                            windSpeed = response.current.wind_speed_10m,
+                            weatherCode = response.current.weather_code,
+                            isDay = response.current.is_day == 1,
+                            cityName = cityName
+                        )
                         _weather.value = data
                     } catch (e: Exception) {
                         _error.value = "解析天气数据失败: ${e.message}"
+                        println(TAG + "data format error:" + url);
                     }
                 },
                 onFailure = { e ->
                     _error.value = "网络请求失败: ${e.message}"
+                    println(TAG + "network error:" + url);
                 }
             )
         }
@@ -74,44 +85,4 @@ class WeatherService {
     )
 
     data class CityInfo(val name: String, val latitude: Double, val longitude: Double)
-
-    companion object {
-        /**
-         * 解析 Open-Meteo API 的 JSON 响应。
-         * 手工解析以避免引入额外依赖，
-         * 生产项目推荐使用 kotlinx.serialization。
-         */
-        private fun parseOpenMeteoResponse(json: String, cityName: String): WeatherData {
-            // 提取 "current" 对象
-            val currentStart = json.indexOf("\"current\"")
-            if (currentStart < 0) throw Exception("Missing 'current' field")
-
-            // 找到 current 对象的 { }
-            val braceStart = json.indexOf('{', currentStart)
-            var depth = 0
-            var braceEnd = braceStart
-            for (i in braceStart until json.length) {
-                when (json[i]) {
-                    '{' -> depth++
-                    '}' -> {
-                        depth--
-                        if (depth == 0) { braceEnd = i; break }
-                    }
-                }
-            }
-
-            val currentJson = json.substring(braceStart, braceEnd + 1)
-            val fields = parseJsonObject(currentJson)
-
-            return WeatherData(
-                temperature = (fields["temperature_2m"] as? Number)?.toDouble() ?: 0.0,
-                feelsLike = (fields["apparent_temperature"] as? Number)?.toDouble() ?: 0.0,
-                humidity = (fields["relative_humidity_2m"] as? Number)?.toInt() ?: 0,
-                windSpeed = (fields["wind_speed_10m"] as? Number)?.toDouble() ?: 0.0,
-                weatherCode = (fields["weather_code"] as? Number)?.toInt() ?: 0,
-                isDay = fields["is_day"] as? Int == 1 || fields["is_day"] as? Boolean == true,
-                cityName = cityName
-            )
-        }
-    }
 }

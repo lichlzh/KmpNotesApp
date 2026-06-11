@@ -3,7 +3,9 @@ package com.example.kmpapp.domain
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.kmpapp.data.Note
+import com.example.kmpapp.data.NoteAttachment
 import com.example.kmpapp.data.NoteRepository
+import com.example.kmpapp.data.WeatherData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -68,14 +70,20 @@ class NotesViewModel : ViewModel() {
         if (!_isSearchActive.value) _searchQuery.value = ""
     }
 
-    fun addNote(title: String, content: String, colorHex: Long = 0xFFFFF3E0, weatherSnapshot: String? = null, attachmentsJson: String? = null) {
+    fun addNote(
+        title: String,
+        content: String,
+        colorHex: Long = 0xFFFFF3E0,
+        weatherSnapshot: WeatherData? = null,
+        attachments: List<NoteAttachment> = emptyList()
+    ) {
         if (title.isBlank() && content.isBlank()) return
-        repository.addNote(title, content, colorHex, weatherSnapshot, attachmentsJson)
+        repository.addNote(title, content, colorHex, weatherSnapshot, attachments)
     }
 
     fun updateNote(note: Note) {
         if (note.title.isBlank() && note.content.isBlank()) return
-        repository.updateNote(note.id, note.title, note.content, note.colorHex, note.isPinned, note.attachmentsJson)
+        repository.updateNote(note.id, note.title, note.content, note.colorHex, note.isPinned, note.attachments)
     }
 
     fun deleteNote(id: Long) {
